@@ -169,20 +169,8 @@ public class H2Dialect extends JdbcDialectImpl {
         }
         if (columns != null && !columns.isEmpty()) {
             buf.append(" WITHIN GROUP (ORDER BY ");
-            boolean first = true;
-            for(OrderedColumn c : columns) {
-                if (!first) {
-                    buf.append(", ");
-                }
-                if (c.getTableName() != null) {
-                    quoteIdentifier(buf, c.getTableName(), c.getColumnName());
-                } else {
-                    quoteIdentifier(buf, c.getColumnName());
-                }
-                if (!c.isAscend()) {
-                    buf.append(DESC);
-                }
-                first = false;
+            if (columns != null) {
+                buf.append(orderedColumns(columns));
             }
             buf.append(")");
         }
@@ -194,6 +182,58 @@ public class H2Dialect extends JdbcDialectImpl {
     }
 
     @Override
+    public StringBuilder generateNthValueAgg(CharSequence operand, boolean ignoreNulls, Integer n, List<OrderedColumn> columns) {
+        StringBuilder buf = new StringBuilder(64);
+        buf.append("NTH_VALUE");
+        buf.append("( ");
+        buf.append(operand);
+        buf.append(", ");
+        if (n == null || n < 1) {
+            buf.append(1);
+        } else {
+        	buf.append(n);
+        }
+        buf.append(" )");
+        if (ignoreNulls) {
+            buf.append(" IGNORE NULLS ");
+        } else {
+            buf.append(" RESPECT NULLS ");
+        }
+        buf.append("OVER ( ");
+        if (columns != null && !columns.isEmpty()) {
+            buf.append("ORDER BY ");
+            buf.append(orderedColumns(columns));
+        }
+        buf.append(" )");
+        //NTH_VALUE(price,2) IGNORE NULLS OVER (ORDER BY id)
+        //NTH_VALUE(price,2) IGNORE NULLS OVER ()
+        return buf;
+    }
+
+    private CharSequence orderedColumns(List<OrderedColumn> columns) {
+        StringBuilder buf = new StringBuilder(64);
+        boolean first = true;
+        if (columns != null) {
+            for(OrderedColumn c : columns) {
+                if (!first) {
+                    buf.append(", ");
+                }
+                if (c.getTableName() != null) {
+                     quoteIdentifier(buf, c.getTableName(), c.getColumnName());
+                } else {
+                    quoteIdentifier(buf, c.getColumnName());
+                }
+                if (!c.isAscend()) {
+                    buf.append(DESC);
+                }
+                first = false;
+            }
+        }
+        return buf;
+	}
+
+
+	@Override
     public boolean supportsPercentileDisc() {
         return true;
     }
